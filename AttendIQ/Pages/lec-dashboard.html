@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>AttendIQ - Lecturer Dashboard</title>
+	<link rel="stylesheet" href="../Css/style.css" />
+	<link rel="stylesheet" href="../Css/dashboard.css" />
+</head>
+<body class="dashboard-page">
+	<div class="student-layout">
+		<aside class="student-sidebar">
+			<div class="student-brand">
+				<div class="logo-icon">QR</div>
+				<h2>AttendIQ</h2>
+			</div>
+			<nav class="student-nav">
+				<button class="active" onclick="window.location.href='lec-dashboard.html'">Overview</button>
+				<button onclick="window.location.href='generate-qr.html'">Generate QR</button>
+				<button onclick="window.location.href='scan-qr.html'">Scan Attendance</button>
+				<button onclick="window.location.href='report.html'">Reports</button>
+				<button onclick="window.location.href='../student-dashboard.html'">Student View</button>
+			</nav>
+			<button class="btn-secondary sidebar-logout" onclick="logout()">Logout</button>
+		</aside>
+
+		<main class="student-main dashboard-shell">
+			<header class="student-topbar">
+				<div>
+					<button class="mobile-nav-toggle" onclick="toggleMobileNav()">Menu</button>
+					<h1 id="lecturerTitle">Lecturer Dashboard</h1>
+				</div>
+				<p id="lecturerTopInfo">lecturer@ums.edu.gh</p>
+			</header>
+
+			<section class="summary-grid">
+				<article class="summary-card"><p>Active sessions</p><strong id="activeSessionCount">0</strong></article>
+				<article class="summary-card"><p>Attendance marks</p><strong id="attendanceMarkCount">0</strong></article>
+				<article class="summary-card"><p>Students checked in</p><strong id="studentCount">0</strong></article>
+				<article class="summary-card"><p>Latest session</p><strong id="latestSessionLabel">None</strong></article>
+			</section>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Quick Actions</h3>
+				</div>
+				<div class="dashboard-links control-grid">
+					<button class="btn-primary" onclick="window.location.href='generate-qr.html'">Generate QR code</button>
+					<button class="btn-secondary" onclick="window.location.href='report.html'">Open attendance reports</button>
+					<button class="btn-secondary" onclick="window.location.href='scan-qr.html'">Validate a scan</button>
+				</div>
+			</article>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Recent Sessions</h3>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr><th>Course</th><th>Date</th><th>Time</th><th>Room</th><th>Status</th></tr>
+						</thead>
+						<tbody id="sessionTableBody"></tbody>
+					</table>
+				</div>
+			</article>
+		</main>
+	</div>
+
+	<script src="../Js/lecturer-dashboard.js"></script>
+</body>
+</html>

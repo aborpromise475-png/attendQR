@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AttendIQ - Student Dashboard</title>
+  <link rel="stylesheet" href="Css/style.css" />
+</head>
+<body class="dashboard-page">
+  <div class="student-layout">
+    <aside class="student-sidebar">
+      <div class="student-brand">
+        <div class="logo-icon">QR</div>
+        <h2>AttendIQ</h2>
+      </div>
+      <nav class="student-nav" id="studentNav">
+        <button class="active" data-section="home">Home</button>
+        <button data-section="scan">Scan QR</button>
+        <button data-section="courses">My Courses</button>
+        <button data-section="history">Attendance History</button>
+        <button data-section="notifications">Notifications</button>
+        <button data-section="profile">Profile</button>
+      </nav>
+      <button class="btn-secondary sidebar-logout" onclick="logout()">Logout</button>
+    </aside>
+
+    <main class="student-main">
+      <header class="student-topbar">
+        <div>
+          <button class="mobile-nav-toggle" onclick="toggleMobileNav()">Menu</button>
+          <h1 id="sectionTitle">Dashboard Home</h1>
+        </div>
+        <p id="studentTopInfo">student@ums.edu.gh</p>
+      </header>
+
+      <section id="section-home" class="dashboard-section">
+        <article class="panel">
+          <h3 id="studentName">Welcome, Student</h3>
+          <p id="studentMeta">Computer Science Department</p>
+          <p class="muted-text">Student ID: <span id="studentIdText">UMS/2024/001</span></p>
+        </article>
+        <article class="panel">
+          <h3>Today's Class</h3>
+          <p id="todayClassText" class="muted-text">No class scheduled yet.</p>
+          <button class="btn-primary quick-scan-btn" onclick="goToQuickScan()">Scan Attendance Now</button>
+        </article>
+        <section class="stats-grid">
+          <article class="stat-card"><p class="stat-label">Attendance Rate</p><h2 id="attendanceRate">0%</h2></article>
+          <article class="stat-card"><p class="stat-label">Total Attended</p><h2 id="attendedCount">0</h2></article>
+          <article class="stat-card"><p class="stat-label">Total Missed</p><h2 id="missedCount">0</h2></article>
+        </section>
+        <article class="panel">
+          <h3>Risk Alerts & Recovery Plan</h3>
+          <div id="riskAlertsBox"></div>
+        </article>
+        <article class="panel">
+          <h3>Weekly Attendance Trend</h3>
+          <div id="trendBars" class="trend-bars"></div>
+        </article>
+      </section>
+
+      <section id="section-scan" class="dashboard-section hidden-step">
+        <article class="panel">
+          <h3>QR Scanner</h3>
+          <p class="muted-text">Frontend demo: camera integration comes next.</p>
+          <div class="scanner-box">Camera Preview Area</div>
+          <div class="scan-actions">
+            <button class="btn-primary scan-btn" onclick="markMockAttendance()">Scan & Mark Attendance</button>
+            <button class="btn-secondary scan-btn" onclick="setScanState('loading')">Loading</button>
+            <button class="btn-secondary scan-btn" onclick="setScanState('expired')">Expired</button>
+            <button class="btn-secondary scan-btn" onclick="setScanState('duplicate')">Duplicate</button>
+            <button class="btn-secondary scan-btn" onclick="setScanState('error')">Error</button>
+          </div>
+          <div id="scanStateCards" class="scan-state-grid">
+            <div id="scan-loading" class="scan-state-card hidden-step">
+              <strong>Opening camera...</strong>
+              <p>Allow camera access and hold the QR steady.</p>
+            </div>
+            <div id="scan-success" class="scan-state-card hidden-step success-state">
+              <strong>Attendance marked successfully</strong>
+              <p>Your check-in has been saved for this class.</p>
+            </div>
+            <div id="scan-expired" class="scan-state-card hidden-step warn-state">
+              <strong>QR expired</strong>
+              <p>Ask lecturer to generate a fresh attendance code.</p>
+            </div>
+            <div id="scan-duplicate" class="scan-state-card hidden-step warn-state">
+              <strong>Duplicate scan detected</strong>
+              <p>Attendance was already marked for this session.</p>
+            </div>
+            <div id="scan-error" class="scan-state-card hidden-step error-state">
+              <strong>Unable to scan</strong>
+              <p>Network or camera issue. Try again in a few seconds.</p>
+            </div>
+          </div>
+          <p id="scanStatus" class="muted-text"></p>
+        </article>
+      </section>
+
+      <section id="section-courses" class="dashboard-section hidden-step">
+        <article class="panel">
+          <h3>My Courses</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Course Code</th><th>Course Name</th><th>Lecturer</th><th>Schedule</th></tr></thead>
+              <tbody id="coursesTableBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="section-history" class="dashboard-section hidden-step">
+        <article class="panel">
+          <div class="panel-head">
+            <h3>Attendance History</h3>
+            <div class="history-tools">
+              <input type="date" id="historyDateFilter" title="Filter attendance by date" onchange="renderAttendanceTable()" />
+              <input type="text" id="historySearch" placeholder="Search course" aria-label="Search course" oninput="renderAttendanceTable()" />
+              <select id="courseFilter" title="Filter by course" aria-label="Filter by course" onchange="renderAttendanceTable()">
+                <option value="all">All Courses</option>
+              </select>
+              <button class="btn-secondary compact-btn" onclick="exportAttendanceCsv()">Export CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Course</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="attendanceTableBody"></tbody>
+            </table>
+          </div>
+          <p id="historyEmptyState" class="muted-text hidden-step">No attendance record matches your filters.</p>
+        </article>
+        <article class="panel">
+          <h3>My Disputes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Course</th><th>Reason</th><th>Status</th></tr></thead>
+              <tbody id="disputesTableBody"></tbody>
+            </table>
+          </div>
+          <p id="disputeEmptyState" class="muted-text hidden-step">No disputes submitted yet.</p>
+        </article>
+      </section>
+
+      <section id="section-notifications" class="dashboard-section hidden-step">
+        <article class="panel">
+          <div class="panel-head">
+            <h3>Notifications</h3>
+            <div class="history-tools">
+              <select id="notificationFilter" title="Filter notifications" aria-label="Filter notifications" onchange="renderNotifications()">
+                <option value="all">All</option>
+                <option value="unread">Unread</option>
+              </select>
+              <button class="btn-secondary compact-btn" onclick="markAllNotificationsRead()">Mark all read</button>
+              <button class="btn-secondary compact-btn" onclick="clearNotifications()">Clear all</button>
+            </div>
+          </div>
+          <ul id="notificationsList" class="notification-list"></ul>
+          <p id="notificationEmptyState" class="muted-text hidden-step">No notifications available.</p>
+        </article>
+      </section>
+
+      <section id="section-profile" class="dashboard-section hidden-step">
+        <article class="panel">
+          <h3>Student Profile</h3>
+          <div class="profile-avatar">Avatar</div>
+          <div class="profile-grid profile-form-grid">
+            <div class="form-group"><label for="profileNameInput">Full Name</label><input id="profileNameInput" type="text" placeholder="Your full name" title="Full name" /></div>
+            <div class="form-group"><label for="profileEmailInput">Email</label><input id="profileEmailInput" type="email" placeholder="your@email.com" title="Email" /></div>
+            <div class="form-group"><label for="profilePhoneInput">Phone</label><input id="profilePhoneInput" type="text" placeholder="Phone number" title="Phone number" /></div>
+            <div class="form-group"><label for="profileDepartmentInput">Department</label><input id="profileDepartmentInput" type="text" placeholder="Department" title="Department" /></div>
+          </div>
+          <div class="profile-actions">
+            <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
+            <button class="btn-secondary">Change Password</button>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="disputeModal" class="modal hidden-step" role="dialog" aria-modal="true" aria-labelledby="disputeTitle">
+    <div class="modal-content">
+      <h3 id="disputeTitle">Raise Attendance Dispute</h3>
+      <p id="disputeMeta" class="muted-text"></p>
+      <div class="form-group">
+        <label for="disputeReason">Reason</label>
+        <select id="disputeReason">
+          <option value="">Select reason</option>
+          <option>I was present but marked absent</option>
+          <option>QR scanner failed during class</option>
+          <option>Network issue while scanning</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="disputeNote">Additional note</label>
+        <input type="text" id="disputeNote" placeholder="Optional details" />
+      </div>
+      <div class="step-actions">
+        <button class="btn-secondary" onclick="closeDisputeModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitDispute()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="Js/student-dashboard.js"></script>
+</body>
+</html>

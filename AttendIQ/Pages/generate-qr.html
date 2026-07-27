@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>AttendIQ - Generate QR</title>
+	<link rel="stylesheet" href="../Css/style.css" />
+	<link rel="stylesheet" href="../Css/dashboard.css" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="dashboard-page">
+	<div class="student-layout">
+		<aside class="student-sidebar">
+			<div class="student-brand">
+				<div class="logo-icon">QR</div>
+				<h2>AttendIQ</h2>
+			</div>
+			<nav class="student-nav">
+				<button onclick="window.location.href='lec-dashboard.html'">Overview</button>
+				<button class="active" onclick="window.location.href='generate-qr.html'">Generate QR</button>
+				<button onclick="window.location.href='scan-qr.html'">Scan Attendance</button>
+				<button onclick="window.location.href='report.html'">Reports</button>
+			</nav>
+			<button class="btn-secondary sidebar-logout" onclick="window.location.href='../login.html'">Logout</button>
+		</aside>
+
+		<main class="student-main dashboard-shell">
+			<header class="student-topbar">
+				<div>
+					<button class="mobile-nav-toggle" onclick="toggleMobileNav()">Menu</button>
+					<h1>Generate Session QR</h1>
+				</div>
+				<p class="page-note">Time-bound tokens refresh automatically when a new session is created.</p>
+			</header>
+
+			<section class="summary-grid">
+				<article class="summary-card"><p>Session status</p><strong id="sessionStatusLabel">Idle</strong></article>
+				<article class="summary-card"><p>Expires in</p><strong id="sessionCountdown">--:--</strong></article>
+				<article class="summary-card"><p>Session token</p><strong id="tokenLengthLabel">0 chars</strong></article>
+				<article class="summary-card"><p>Room</p><strong id="roomLabel">N/A</strong></article>
+			</section>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Create QR Session</h3>
+				</div>
+				<div class="control-grid">
+					<div class="form-group">
+						<label for="apiBaseInput">API base URL</label>
+						<input id="apiBaseInput" type="url" placeholder="Leave blank to use this site" />
+					</div>
+					<div class="form-group">
+						<label for="courseSelect">Course</label>
+						<select id="courseSelect"></select>
+					</div>
+					<div class="form-group">
+						<label for="sessionDate">Date</label>
+						<input id="sessionDate" type="date" />
+					</div>
+					<div class="form-group">
+						<label for="sessionStart">Start time</label>
+						<input id="sessionStart" type="time" />
+					</div>
+					<div class="form-group">
+						<label for="sessionDuration">Duration (minutes)</label>
+						<input id="sessionDuration" type="number" min="5" value="30" />
+					</div>
+					<div class="form-group">
+						<label for="roomInput">Room</label>
+						<input id="roomInput" type="text" placeholder="Lab 2" />
+					</div>
+					<div class="form-group">
+						<label for="allowedRadius">Allowed radius (meters)</label>
+						<input id="allowedRadius" type="number" min="25" step="25" value="150" />
+					</div>
+				</div>
+				<div class="dashboard-links control-grid spaced-block">
+					<button class="btn-secondary" onclick="useCurrentLocation()">Use current location</button>
+					<button class="btn-secondary" onclick="clearSessionLocation()">Clear location</button>
+				</div>
+				<div class="dashboard-links control-grid spaced-block">
+					<button class="btn-primary" onclick="generateSession()">Generate QR session</button>
+					<button class="btn-secondary" onclick="refreshActiveSession()">Refresh active session</button>
+					<button class="btn-secondary" onclick="copySessionToken()">Copy token</button>
+				</div>
+			</article>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Active QR Code</h3>
+					<span id="generateStatus" class="status-soft">No session yet</span>
+				</div>
+				<div class="qr-code-box">
+					<div id="qrCodeFrame"></div>
+					<p class="qr-code-meta" id="sessionMeta">The QR code expires when the session ends.</p>
+					<p class="qr-code-url" id="sessionLocationMeta">No location bound yet.</p>
+				</div>
+			</article>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Session History</h3>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr><th>Course</th><th>Date</th><th>Start</th><th>Duration</th><th>Token</th></tr>
+						</thead>
+						<tbody id="sessionHistoryBody"></tbody>
+					</table>
+				</div>
+			</article>
+		</main>
+	</div>
+
+	<script src="../Js/qr.js"></script>
+</body>
+</html>

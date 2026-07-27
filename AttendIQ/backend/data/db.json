@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "id": "demo-lecturer",
+      "role": "lecturer",
+      "name": "Demo Lecturer",
+      "email": "lecturer@ums.edu.gh",
+      "passwordHash": "",
+      "passwordSalt": "",
+      "department": "Computer Science"
+    },
+    {
+      "id": "demo-student",
+      "role": "student",
+      "name": "Demo Student",
+      "email": "student@ums.edu.gh",
+      "passwordHash": "",
+      "passwordSalt": "",
+      "department": "Computer Science",
+      "studentId": "UMS/2024/001"
+    }
+  ],
+  "sessions": [],
+  "deviceBindings": [],
+  "attendanceRecords": []
+}

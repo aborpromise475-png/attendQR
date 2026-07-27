@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AttendIQ – Register</title>
+  <link rel="stylesheet" href="Css/style.css" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+
+    <div class="logo">
+      <div class="logo-icon">QR</div>
+      <h1>Create Account</h1>
+      <p>Join AttendIQ today</p>
+    </div>
+
+    <div class="role-toggle">
+      <button class="active" onclick="setRegisterRole('student', this)">Student</button>
+      <button onclick="setRegisterRole('lecturer', this)">Lecturer</button>
+    </div>
+
+    <div class="step-indicator">
+      <div class="step-progress">
+        <div id="stepProgressBar"></div>
+      </div>
+      <span id="stepText">Step 1 of 2 - Account details</span>
+    </div>
+
+    <div id="registerStep1">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="name" placeholder="e.g. Ama Owusu" />
+      </div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="email" placeholder="your@email.com" />
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-field">
+          <input type="password" id="password" placeholder="Min 8 characters" />
+          <button
+            type="button"
+            class="password-toggle"
+            aria-label="Show password"
+            onclick="togglePassword('password', this)"
+          >
+            <span class="eye-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="password-field">
+          <input type="password" id="confirm" placeholder="Repeat your password" />
+          <button
+            type="button"
+            class="password-toggle"
+            aria-label="Show password"
+            onclick="togglePassword('confirm', this)"
+          >
+            <span class="eye-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="goToRegisterStep2()">Continue</button>
+    </div>
+
+    <div id="registerStep2" class="hidden-step">
+      <div class="form-group">
+        <label for="department">Department</label>
+        <select id="department" title="Department">
+          <option value="">Select department</option>
+          <option>Computer Science</option>
+          <option>Information Technology</option>
+          <option>Engineering</option>
+          <option>Business</option>
+          <option>Mathematics</option>
+          <option>Physics</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="studentIdGroup">
+        <label for="studentId">Student ID</label>
+        <input type="text" id="studentId" placeholder="e.g. UMS/2024/001" title="Student ID" />
+      </div>
+
+      <div class="step-actions">
+        <button class="btn-secondary" onclick="goToRegisterStep1()">Back</button>
+        <button class="btn-primary" onclick="handleRegister()">Create Account</button>
+      </div>
+    </div>
+
+    <div class="error-box" id="error">Passwords do not match.</div>
+
+    <div class="auth-footer">
+      Already have an account? <a href="login.html">Sign in</a>
+    </div>
+
+  </div>
+
+  <script src="Js/auth.js"></script>
+
+</body>
+</html>
