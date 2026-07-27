@@ -30,14 +30,14 @@
           <button class="mobile-nav-toggle" onclick="toggleMobileNav()">Menu</button>
           <h1 id="sectionTitle">Dashboard Home</h1>
         </div>
-        <p id="studentTopInfo">student@ums.edu.gh</p>
+        <p id="studentTopInfo">student@htu.edu.gh</p>
       </header>
 
       <section id="section-home" class="dashboard-section">
         <article class="panel">
           <h3 id="studentName">Welcome, Student</h3>
           <p id="studentMeta">Computer Science Department</p>
-          <p class="muted-text">Student ID: <span id="studentIdText">UMS/2024/001</span></p>
+          <p class="muted-text">Student ID: <span id="studentIdText">HTU/2024/001</span></p>
         </article>
         <article class="panel">
           <h3>Today's Class</h3>
@@ -62,10 +62,10 @@
       <section id="section-scan" class="dashboard-section hidden-step">
         <article class="panel">
           <h3>QR Scanner</h3>
-          <p class="muted-text">Frontend demo: camera integration comes next.</p>
-          <div class="scanner-box">Camera Preview Area</div>
+          <p class="muted-text">Use the live camera scanner to read attendance QR codes.</p>
           <div class="scan-actions">
-            <button class="btn-primary scan-btn" onclick="markMockAttendance()">Scan & Mark Attendance</button>
+            <button class="btn-primary scan-btn" onclick="window.location.href='Pages/scan-qr.html'">Open Live Camera Scanner</button>
+            <button class="btn-secondary scan-btn" onclick="markMockAttendance()">Mock Attendance Scan</button>
             <button class="btn-secondary scan-btn" onclick="setScanState('loading')">Loading</button>
             <button class="btn-secondary scan-btn" onclick="setScanState('expired')">Expired</button>
             <button class="btn-secondary scan-btn" onclick="setScanState('duplicate')">Duplicate</button>

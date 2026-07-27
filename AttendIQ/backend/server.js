@@ -22,6 +22,34 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+let pgPool = null;
+if (process.env.DATABASE_URL) {
+  try {
+    const { Pool } = require('pg');
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+    });
+    console.log('Render PostgreSQL Database initialized.');
+  } catch (err) {
+    console.warn('pg module unavailable or database connection pending, using file DB:', err.message);
+  }
+}
+
+async function initPostgresSchema() {
+  if (!pgPool) return;
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  if (fs.existsSync(schemaPath)) {
+    try {
+      const sql = fs.readFileSync(schemaPath, 'utf8');
+      await pgPool.query(sql);
+      console.log('PostgreSQL database schema verified.');
+    } catch (err) {
+      console.error('PostgreSQL schema migration notice:', err.message);
+    }
+  }
+}
+
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -44,8 +72,69 @@ function loadDb() {
   };
 }
 
+async function loadDbAsync() {
+  if (pgPool) {
+    try {
+      const [uRes, sRes, bRes, aRes] = await Promise.all([
+        pgPool.query('SELECT id, role, name, email, password_hash AS "passwordHash", password_salt AS "passwordSalt", department, student_id AS "studentId" FROM users'),
+        pgPool.query('SELECT id, lecturer_email AS "lecturerEmail", lecturer_name AS "lecturerName", course_code AS "courseCode", course_name AS "courseName", room, latitude, longitude, allowed_radius_meters AS "allowedRadiusMeters", signature, scan_url AS "scanUrl", created_at AS "createdAt", expires_at AS "expiresAt", status FROM class_sessions'),
+        pgPool.query('SELECT id, student_email AS "studentEmail", device_id AS "deviceId", bound_at AS "boundAt" FROM device_bindings'),
+        pgPool.query('SELECT id, session_id AS "sessionId", course_code AS "courseCode", course_name AS "courseName", lecturer_email AS "lecturerEmail", student_email AS "studentEmail", student_name AS "studentName", student_id AS "studentId", device_id AS "deviceId", room, marked_at AS "markedAt", status, latitude, longitude, note FROM attendance_records'),
+      ]);
+      return {
+        users: uRes.rows,
+        sessions: sRes.rows,
+        deviceBindings: bRes.rows,
+        attendanceRecords: aRes.rows,
+      };
+    } catch (err) {
+      console.error('PostgreSQL query notice, using local file DB:', err.message);
+    }
+  }
+  return loadDb();
+}
+
 function saveDb(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+}
+
+async function saveDbAsync(db, type, record) {
+  saveDb(db);
+  if (!pgPool || !type || !record) return;
+
+  try {
+    if (type === 'user') {
+      await pgPool.query(
+        `INSERT INTO users (id, role, name, email, password_hash, password_salt, department, student_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash`,
+        [record.id, record.role, record.name, record.email, record.passwordHash || '', record.passwordSalt || '', record.department || '', record.studentId || '']
+      );
+    } else if (type === 'session') {
+      await pgPool.query(
+        `INSERT INTO class_sessions (id, lecturer_email, lecturer_name, course_code, course_name, room, latitude, longitude, allowed_radius_meters, signature, scan_url, expires_at, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         ON CONFLICT (id) DO UPDATE SET expires_at = EXCLUDED.expires_at, signature = EXCLUDED.signature`,
+        [record.id, record.lecturerEmail, record.lecturerName, record.courseCode, record.courseName, record.room, record.latitude, record.longitude, record.allowedRadiusMeters, record.signature, record.scanUrl, record.expiresAt, record.status || 'Active']
+      );
+    } else if (type === 'binding') {
+      await pgPool.query(
+        `INSERT INTO device_bindings (id, student_email, device_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (student_email) DO UPDATE SET device_id = EXCLUDED.device_id, bound_at = CURRENT_TIMESTAMP`,
+        [record.id || createId(), record.studentEmail, record.deviceId]
+      );
+    } else if (type === 'attendance') {
+      await pgPool.query(
+        `INSERT INTO attendance_records (id, session_id, course_code, course_name, lecturer_email, student_email, student_name, student_id, device_id, room, status, latitude, longitude, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (session_id, student_email) DO NOTHING`,
+        [record.id, record.sessionId, record.courseCode, record.courseName, record.lecturerEmail, record.studentEmail, record.studentName, record.studentId, record.deviceId, record.room, record.status || 'Present', record.latitude, record.longitude, record.note || '']
+      );
+    }
+  } catch (err) {
+    console.error('PostgreSQL sync notice:', err.message);
+  }
 }
 
 function sendJson(res, statusCode, payload) {
@@ -162,6 +251,7 @@ function upsertBinding(db, studentEmail, deviceId) {
   const normalized = normalizeEmail(studentEmail);
   const index = db.deviceBindings.findIndex((binding) => normalizeEmail(binding.studentEmail) === normalized);
   const record = {
+    id: createId(),
     studentEmail: normalized,
     deviceId,
     boundAt: new Date().toISOString(),
@@ -211,7 +301,7 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/api/health') {
-    jsonResponse(res, 200, { ok: true, service: 'attendiq-backend' });
+    jsonResponse(res, 200, { ok: true, service: 'attendiq-backend', database: pgPool ? 'postgresql' : 'json-file' });
     return;
   }
 
@@ -224,7 +314,12 @@ async function handleRequest(req, res) {
       return;
     }
 
-    const db = loadDb();
+    if (role === 'student' && !email.endsWith('@htu.edu.gh')) {
+      jsonResponse(res, 400, { error: 'Students must register with an official Ho Technical University email (@htu.edu.gh)' });
+      return;
+    }
+
+    const db = await loadDbAsync();
     if (db.users.some((user) => normalizeEmail(user.email) === email)) {
       jsonResponse(res, 409, { error: 'User already exists' });
       return;
@@ -242,7 +337,7 @@ async function handleRequest(req, res) {
       studentId: role === 'student' ? body.studentId || '' : '',
     };
     db.users.push(user);
-    saveDb(db);
+    await saveDbAsync(db, 'user', user);
     jsonResponse(res, 201, { user: { ...user, passwordHash: undefined, passwordSalt: undefined } });
     return;
   }
@@ -250,7 +345,13 @@ async function handleRequest(req, res) {
   if (req.method === 'POST' && pathname === '/api/auth/login') {
     const body = await readBody(req);
     const email = normalizeEmail(body.email);
-    const db = loadDb();
+    const reqRole = body.role || 'student';
+    if (reqRole === 'student' && !email.endsWith('@htu.edu.gh')) {
+      jsonResponse(res, 400, { error: 'Student login requires an official @htu.edu.gh email address' });
+      return;
+    }
+
+    const db = await loadDbAsync();
     const user = db.users.find((item) => normalizeEmail(item.email) === email);
     if (!user) {
       jsonResponse(res, 401, { error: 'Invalid credentials' });
@@ -285,7 +386,7 @@ async function handleRequest(req, res) {
       return;
     }
 
-    const db = loadDb();
+    const db = await loadDbAsync();
     const binding = getBinding(db, studentEmail);
     jsonResponse(res, 200, { binding });
     return;
@@ -299,9 +400,9 @@ async function handleRequest(req, res) {
       return;
     }
 
-    const db = loadDb();
+    const db = await loadDbAsync();
     const binding = upsertBinding(db, studentEmail, body.deviceId);
-    saveDb(db);
+    await saveDbAsync(db, 'binding', binding);
     jsonResponse(res, 200, { binding });
     return;
   }
@@ -313,7 +414,7 @@ async function handleRequest(req, res) {
       return;
     }
 
-    const db = loadDb();
+    const db = await loadDbAsync();
     const session = {
       id: createId(),
       lecturerEmail: normalizeEmail(body.lecturerEmail || ''),
@@ -333,14 +434,14 @@ async function handleRequest(req, res) {
     const apiBase = body.apiBase || `http://${req.headers.host}`;
     session.scanUrl = buildScanUrl(frontendOrigin, apiBase, session.id, session.signature);
     db.sessions.push(session);
-    saveDb(db);
+    await saveDbAsync(db, 'session', session);
     jsonResponse(res, 201, { session });
     return;
   }
 
   if (req.method === 'POST' && pathname.startsWith('/api/sessions/') && pathname.endsWith('/refresh')) {
     const sessionId = pathname.split('/')[3];
-    const db = loadDb();
+    const db = await loadDbAsync();
     const session = db.sessions.find((item) => item.id === sessionId);
     if (!session) {
       jsonResponse(res, 404, { error: 'Session not found' });
@@ -352,14 +453,14 @@ async function handleRequest(req, res) {
     const apiBase = searchParams.get('api') || `http://${req.headers.host}`;
     const frontendOrigin = searchParams.get('frontendOrigin') || '';
     session.scanUrl = buildScanUrl(frontendOrigin, apiBase, session.id, session.signature);
-    saveDb(db);
+    await saveDbAsync(db, 'session', session);
     jsonResponse(res, 200, { session });
     return;
   }
 
   if (req.method === 'GET' && pathname.startsWith('/api/sessions/')) {
     const sessionId = pathname.split('/')[3];
-    const db = loadDb();
+    const db = await loadDbAsync();
     const session = db.sessions.find((item) => item.id === sessionId);
     if (!session) {
       jsonResponse(res, 404, { error: 'Session not found' });
@@ -370,7 +471,7 @@ async function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && pathname === '/api/sessions') {
-    const db = loadDb();
+    const db = await loadDbAsync();
     const lecturerEmail = searchParams.get('lecturerEmail') || '';
     const sessions = db.sessions
       .filter((session) => !lecturerEmail || normalizeEmail(session.lecturerEmail) === normalizeEmail(lecturerEmail))
@@ -381,7 +482,7 @@ async function handleRequest(req, res) {
 
   if (req.method === 'POST' && pathname === '/api/attendance/scan') {
     const body = await readBody(req);
-    const db = loadDb();
+    const db = await loadDbAsync();
     const session = db.sessions.find((item) => item.id === body.sessionId);
     if (!session) {
       jsonResponse(res, 404, { error: 'Session not found' });
@@ -457,16 +558,17 @@ async function handleRequest(req, res) {
       status: 'Present',
       latitude: Number(body.latitude) || null,
       longitude: Number(body.longitude) || null,
+      note: body.note || '',
     };
 
     db.attendanceRecords.push(attendance);
-    saveDb(db);
+    await saveDbAsync(db, 'attendance', attendance);
     jsonResponse(res, 200, { attendance });
     return;
   }
 
   if (req.method === 'GET' && pathname === '/api/reports/attendance') {
-    const db = loadDb();
+    const db = await loadDbAsync();
     const records = filterAttendance(db, {
       studentEmail: searchParams.get('studentEmail') || '',
       courseCode: searchParams.get('courseCode') || '',
@@ -482,6 +584,8 @@ async function handleRequest(req, res) {
 }
 
 ensureDataFile();
+initPostgresSchema().catch(() => null);
+
 http.createServer((req, res) => {
   handleRequest(req, res).catch((error) => {
     console.error(error);

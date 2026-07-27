@@ -18,8 +18,8 @@ function getActiveSession() {
 function getCurrentStudent() {
 	return {
 		name: localStorage.getItem("attendiqUserName") || "Student",
-		email: localStorage.getItem("attendiqUserEmail") || "student@ums.edu.gh",
-		studentId: "UMS/2024/001",
+		email: localStorage.getItem("attendiqUserEmail") || "student@htu.edu.gh",
+		studentId: localStorage.getItem("attendiqStudentId") || "HTU/2024/001",
 	};
 }
 
@@ -65,9 +65,26 @@ function getBoundDeviceId() {
 	return localStorage.getItem("attendiqBoundStudentDeviceId") || "";
 }
 
-function bindCurrentDevice() {
-	localStorage.setItem("attendiqBoundStudentDeviceId", getDeviceId());
+async function bindCurrentDevice() {
+	const currentDeviceId = getDeviceId();
+	const student = getCurrentStudent();
+	localStorage.setItem("attendiqBoundStudentDeviceId", currentDeviceId);
 	refreshBindingStatus();
+
+	try {
+		const apiBase = getApiBase();
+		await fetchJson(`${apiBase}/api/device/bind`, {
+			method: "POST",
+			body: JSON.stringify({
+				studentEmail: student.email,
+				deviceId: currentDeviceId,
+			}),
+		});
+		return true;
+	} catch (err) {
+		console.warn("Device binding server notice:", err.message);
+		return false;
+	}
 }
 
 function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -105,6 +122,7 @@ function saveAttendanceStore(records) {
 let cameraStream = null;
 let cameraScanTimer = null;
 let barcodeDetector = null;
+let hiddenScanCanvas = null;
 
 function setCameraStatus(badgeText, message) {
 	const badge = document.getElementById("cameraStatusBadge");
@@ -116,9 +134,33 @@ function setCameraStatus(badgeText, message) {
 async function ensureBarcodeDetector() {
 	if (!supportsBarcodeDetector()) return null;
 	if (!barcodeDetector) {
-		barcodeDetector = new BarcodeDetector({ formats: ["qr_code"] });
+		try {
+			barcodeDetector = new BarcodeDetector({ formats: ["qr_code"] });
+		} catch (e) {
+			barcodeDetector = null;
+		}
 	}
 	return barcodeDetector;
+}
+
+function scanCanvasFrame(videoElement) {
+	if (typeof jsQR === "undefined") return null;
+	if (!hiddenScanCanvas) {
+		hiddenScanCanvas = document.createElement("canvas");
+	}
+	const width = videoElement.videoWidth;
+	const height = videoElement.videoHeight;
+	if (!width || !height) return null;
+
+	hiddenScanCanvas.width = width;
+	hiddenScanCanvas.height = height;
+	const ctx = hiddenScanCanvas.getContext("2d", { willReadFrequently: true });
+	ctx.drawImage(videoElement, 0, 0, width, height);
+	const imageData = ctx.getImageData(0, 0, width, height);
+	const code = jsQR(imageData.data, imageData.width, imageData.height, {
+		inversionAttempts: "dontInvert",
+	});
+	return code ? code.data : null;
 }
 
 async function openCamera() {
@@ -139,10 +181,10 @@ async function openCamera() {
 		cameraStream = stream;
 		preview.srcObject = stream;
 		await preview.play();
-		setCameraStatus("Camera on", "Camera opened. Point it at a QR code.");
+		setCameraStatus("Camera active", "Camera opened. Point it at a QR code.");
 		autoScanCameraFrame();
 	} catch (error) {
-		setCameraStatus("Blocked", error.message || "Unable to open the camera.");
+		setCameraStatus("Blocked", error.message || "Unable to open camera.");
 	}
 }
 
@@ -160,26 +202,88 @@ function closeCamera() {
 	setCameraStatus("Camera off", "Open the camera to scan a QR code automatically.");
 }
 
+function parseQrPayload(rawInput) {
+	if (!rawInput) return { sessionId: "", signature: "", token: "", apiBase: "" };
+	const str = String(rawInput).trim();
+
+	if (str.startsWith("http://") || str.startsWith("https://") || str.includes("scan-qr.html")) {
+		try {
+			const url = new URL(str, window.location.origin);
+			const sessionId = url.searchParams.get("sessionId") || "";
+			const signature = url.searchParams.get("sig") || url.searchParams.get("token") || "";
+			const apiBase = url.searchParams.get("api") || "";
+			return { sessionId, signature, token: signature, apiBase };
+		} catch (e) {}
+	}
+
+	if (str.startsWith("{")) {
+		try {
+			const parsed = JSON.parse(str);
+			return {
+				sessionId: parsed.sessionId || parsed.id || "",
+				signature: parsed.signature || parsed.sig || parsed.token || "",
+				token: parsed.token || parsed.signature || "",
+				apiBase: parsed.apiBase || parsed.api || "",
+			};
+		} catch (e) {}
+	}
+
+	return { sessionId: "", signature: str, token: str, apiBase: "" };
+}
+
+async function processScannedQrData(qrText) {
+	const tokenInput = document.getElementById("scanTokenInput");
+	if (tokenInput) tokenInput.value = qrText;
+
+	const parsed = parseQrPayload(qrText);
+	if (parsed.apiBase) {
+		localStorage.setItem("attendiqApiBase", parsed.apiBase);
+	}
+
+	if (parsed.sessionId) {
+		try {
+			const apiBase = parsed.apiBase || getApiBase();
+			const result = await fetchJson(`${apiBase}/api/sessions/${encodeURIComponent(parsed.sessionId)}`);
+			if (result && result.session) {
+				localStorage.setItem("attendiqActiveQrSession", JSON.stringify(result.session));
+				refreshScanSummary();
+			}
+		} catch (err) {
+			console.warn("Could not hydrate scanned session:", err);
+		}
+	}
+}
+
 async function scanFrameOnce() {
 	const preview = document.getElementById("cameraPreview");
 	const tokenInput = document.getElementById("scanTokenInput");
 	if (!preview || !cameraStream || !tokenInput) {
 		setCameraStatus("No camera", "Open the camera first, then scan a code.");
-		return;
+		return null;
 	}
+
+	let qrText = null;
 
 	const detector = await ensureBarcodeDetector();
-	if (!detector) {
-		setCameraStatus("Unsupported", "This browser cannot decode QR codes directly. Try Chrome or Edge.");
-		return;
+	if (detector) {
+		const detections = await detector.detect(preview).catch(() => []);
+		if (detections.length > 0 && detections[0].rawValue) {
+			qrText = detections[0].rawValue;
+		}
 	}
 
-	const detections = await detector.detect(preview).catch(() => []);
-	if (detections.length > 0 && detections[0].rawValue) {
-		tokenInput.value = detections[0].rawValue;
-		setCameraStatus("QR found", "The QR token has been loaded into the form.");
-		closeCamera();
+	if (!qrText) {
+		qrText = scanCanvasFrame(preview);
 	}
+
+	if (qrText) {
+		setCameraStatus("QR code found", "QR code detected successfully!");
+		await processScannedQrData(qrText);
+		closeCamera();
+		return qrText;
+	}
+
+	return null;
 }
 
 function autoScanCameraFrame() {
@@ -190,7 +294,7 @@ function autoScanCameraFrame() {
 	cameraScanTimer = setInterval(async () => {
 		if (!cameraStream) return;
 		await scanFrameOnce();
-	}, 1200);
+	}, 800);
 }
 
 function toggleMobileNav() {
@@ -241,14 +345,23 @@ function refreshScanSummary() {
 	const records = getAttendanceStore().filter((record) => record.studentEmail === student.email);
 	const markedToday = records.filter((record) => record.markedAt && record.markedAt.startsWith(new Date().toISOString().slice(0, 10))).length;
 
-	document.getElementById("scanStudentLabel").textContent = student.name;
-	document.getElementById("activeSessionLabel").textContent = active ? active.courseCode : "None";
-	document.getElementById("markedTodayLabel").textContent = String(markedToday);
-	document.getElementById("scanStatusLabel").textContent = active ? "Ready" : "Waiting";
-	document.getElementById("scanResultBadge").textContent = active ? "Ready" : "Idle";
-	document.getElementById("scanResultText").textContent = active
-		? `Session ${active.courseCode} is available for attendance. The device must be bound and inside the classroom radius.`
-		: "No active QR session is available right now.";
+	const studentLabel = document.getElementById("scanStudentLabel");
+	const sessionLabel = document.getElementById("activeSessionLabel");
+	const markedLabel = document.getElementById("markedTodayLabel");
+	const statusLabel = document.getElementById("scanStatusLabel");
+	const resultBadge = document.getElementById("scanResultBadge");
+	const resultText = document.getElementById("scanResultText");
+
+	if (studentLabel) studentLabel.textContent = student.name;
+	if (sessionLabel) sessionLabel.textContent = active ? active.courseCode : "None";
+	if (markedLabel) markedLabel.textContent = String(markedToday);
+	if (statusLabel) statusLabel.textContent = active ? "Ready" : "Waiting";
+	if (resultBadge) resultBadge.textContent = active ? "Ready" : "Idle";
+	if (resultText) {
+		resultText.textContent = active
+			? `Session ${active.courseCode} (${active.courseName}) is active. Point camera or press Mark Attendance.`
+			: "No active QR session loaded yet.";
+	}
 	refreshBindingStatus();
 	renderScanHistory();
 }
@@ -266,8 +379,8 @@ function renderScanHistory() {
 		.forEach((record) => {
 			const row = document.createElement("tr");
 			row.innerHTML = `
-				<td>${record.courseCode} - ${record.courseName}</td>
-				<td>${record.sessionId}</td>
+				<td>${record.courseCode} - ${record.courseName || record.course || "Class"}</td>
+				<td>${record.sessionId || "-"}</td>
 				<td>${record.markedAt ? new Date(record.markedAt).toLocaleString() : "-"}</td>
 				<td><span class="status-pill status-present">${record.status || "Present"}</span></td>
 			`;
@@ -279,103 +392,119 @@ function fillActiveToken() {
 	const active = getActiveSession();
 	if (!active) {
 		document.getElementById("scanResultBadge").textContent = "No session";
-		document.getElementById("scanResultText").textContent = "Create a QR session first.";
+		document.getElementById("scanResultText").textContent = "Create or scan a QR session first.";
 		return;
 	}
 
-	document.getElementById("scanTokenInput").value = active.token;
+	document.getElementById("scanTokenInput").value = active.signature || active.token || active.id;
 	document.getElementById("scanResultBadge").textContent = "Token loaded";
-	document.getElementById("scanResultText").textContent = "The active session token has been filled into the form.";
+	document.getElementById("scanResultText").textContent = "Active session token loaded into form.";
 }
 
-function requestBinding() {
-	bindCurrentDevice();
+async function requestBinding() {
+	await bindCurrentDevice();
 	document.getElementById("scanResultBadge").textContent = "Bound";
-	document.getElementById("scanResultText").textContent = "This phone has been bound for attendance scans.";
-}
-
-async function verifyLocationForSession(active) {
-	if (!active || active.latitude === null || active.longitude === null) {
-		return { ok: true, message: "No classroom location was set for this session." };
-	}
-
-	const currentLocation = await getCurrentLocation();
-	const distance = haversineDistanceMeters(active.latitude, active.longitude, currentLocation.latitude, currentLocation.longitude);
-	const radius = Number(active.allowedRadiusMeters || 150);
-	if (distance > radius) {
-		return {
-			ok: false,
-			message: `You are about ${Math.round(distance)}m away from the approved location. Move closer to class.`,
-		};
-	}
-	return { ok: true, message: `Location verified within ${Math.round(distance)}m.` };
+	document.getElementById("scanResultText").textContent = "This phone has been bound for student attendance scans.";
 }
 
 async function markAttendanceFromToken() {
-	const sessionId = new URLSearchParams(window.location.search).get("sessionId") || "";
-	const signature = new URLSearchParams(window.location.search).get("sig") || "";
-	const token = document.getElementById("scanTokenInput").value.trim();
-	const note = document.getElementById("scanNoteInput").value.trim();
-	const active = getActiveSession();
+	const tokenInput = document.getElementById("scanTokenInput");
+	const rawTokenInput = tokenInput ? tokenInput.value.trim() : "";
+	const noteInput = document.getElementById("scanNoteInput");
+	const note = noteInput ? noteInput.value.trim() : "";
 	const student = getCurrentStudent();
 	const currentDeviceId = getDeviceId();
-	const boundDeviceId = getBoundDeviceId();
+	let boundDeviceId = getBoundDeviceId();
 	const apiBase = getApiBase();
 
-	if (!token) {
+	if (!rawTokenInput) {
 		document.getElementById("scanResultBadge").textContent = "Missing token";
-		document.getElementById("scanResultText").textContent = "Paste the QR token before validating.";
+		document.getElementById("scanResultText").textContent = "Scan a QR code or paste the session token/URL first.";
 		return;
+	}
+
+	const parsed = parseQrPayload(rawTokenInput);
+	const params = new URLSearchParams(window.location.search);
+	const sessionId = parsed.sessionId || params.get("sessionId") || "";
+	const signature = parsed.signature || params.get("sig") || parsed.token || rawTokenInput;
+
+	let active = getActiveSession();
+
+	if ((!active || (sessionId && active.id !== sessionId)) && sessionId) {
+		try {
+			const result = await fetchJson(`${apiBase}/api/sessions/${encodeURIComponent(sessionId)}`);
+			if (result && result.session) {
+				active = result.session;
+				localStorage.setItem("attendiqActiveQrSession", JSON.stringify(active));
+			}
+		} catch (err) {
+			console.warn("Session fetch error:", err);
+		}
 	}
 
 	if (!sessionId && !active) {
-		document.getElementById("scanResultBadge").textContent = "Expired";
-		document.getElementById("scanResultText").textContent = "The active session has expired or is unavailable.";
+		document.getElementById("scanResultBadge").textContent = "Expired/Missing";
+		document.getElementById("scanResultText").textContent = "Session is missing, expired, or invalid.";
 		return;
 	}
 
-	if (active && token !== active.token) {
-		document.getElementById("scanResultBadge").textContent = "Invalid";
-		document.getElementById("scanResultText").textContent = "The token does not match the active QR session.";
-		return;
+	const targetSessionId = sessionId || active?.id;
+	const targetSignature = signature || active?.signature || active?.token;
+
+	if (!boundDeviceId) {
+		await bindCurrentDevice();
+		boundDeviceId = getBoundDeviceId();
 	}
 
-	if (boundDeviceId && boundDeviceId !== currentDeviceId) {
-		document.getElementById("scanResultBadge").textContent = "Device blocked";
-		document.getElementById("scanResultText").textContent = "This phone is not the bound attendance device for the student.";
-		return;
+	let studentLoc = { latitude: null, longitude: null };
+	try {
+		studentLoc = await getCurrentLocation();
+	} catch (locErr) {
+		console.warn("Geolocation access notice:", locErr.message);
 	}
 
-	const locationCheck = await verifyLocationForSession(active || { latitude: null, longitude: null, allowedRadiusMeters: 150 });
-	if (!locationCheck.ok) {
-		document.getElementById("scanResultBadge").textContent = "Too far";
-		document.getElementById("scanResultText").textContent = locationCheck.message;
-		return;
+	if (active && active.latitude !== null && active.longitude !== null) {
+		if (studentLoc.latitude === null || studentLoc.longitude === null) {
+			document.getElementById("scanResultBadge").textContent = "Location required";
+			document.getElementById("scanResultText").textContent = "Classroom location verification required. Please allow location access.";
+			return;
+		}
+		const distance = haversineDistanceMeters(active.latitude, active.longitude, studentLoc.latitude, studentLoc.longitude);
+		const radius = Number(active.allowedRadiusMeters || 150);
+		if (distance > radius) {
+			document.getElementById("scanResultBadge").textContent = "Too far";
+			document.getElementById("scanResultText").textContent = `You are about ${Math.round(distance)}m away from classroom. Radius limit is ${radius}m.`;
+			return;
+		}
 	}
 
 	try {
+		document.getElementById("scanResultBadge").textContent = "Validating...";
+		document.getElementById("scanResultText").textContent = "Submitting attendance to server...";
+
 		const result = await fetchJson(`${apiBase}/api/attendance/scan`, {
 			method: "POST",
 			body: JSON.stringify({
-				sessionId: sessionId || active.id,
-				signature: signature || active.signature,
+				sessionId: targetSessionId,
+				signature: targetSignature,
 				studentEmail: student.email,
 				studentName: student.name,
 				studentId: student.studentId,
 				deviceId: currentDeviceId,
-				latitude: active?.latitude ?? null,
-				longitude: active?.longitude ?? null,
+				latitude: studentLoc.latitude,
+				longitude: studentLoc.longitude,
 				note,
 			}),
 		});
 
 		const record = result.attendance;
 		const existing = getAttendanceStore();
-		existing.push(record);
-		saveAttendanceStore(existing);
-		if (!boundDeviceId) bindCurrentDevice();
+		if (!existing.some((r) => r.id === record.id)) {
+			existing.push(record);
+			saveAttendanceStore(existing);
+		}
 		document.getElementById("scanResultBadge").textContent = "Marked";
-		document.getElementById("scanResultText").textContent = `Attendance marked for ${student.name} in ${record.courseCode}. ${locationCheck.message}`;
+		document.getElementById("scanResultText").textContent = `Attendance successfully marked for ${student.name} in ${record.courseCode}.`;
 		refreshScanSummary();
 	} catch (error) {
 		document.getElementById("scanResultBadge").textContent = "Rejected";
@@ -393,13 +522,13 @@ document.addEventListener("DOMContentLoaded", () => {
 	const sessionFromUrl = new URLSearchParams(window.location.search).get("session");
 	const sessionIdFromUrl = new URLSearchParams(window.location.search).get("sessionId");
 	const signatureFromUrl = new URLSearchParams(window.location.search).get("sig");
-	if (sessionFromUrl) {
-		const tokenInput = document.getElementById("scanTokenInput");
-		if (tokenInput) tokenInput.value = sessionFromUrl;
-	}
-	if (sessionIdFromUrl || signatureFromUrl) {
-		const tokenInput = document.getElementById("scanTokenInput");
-		if (tokenInput && signatureFromUrl) tokenInput.value = signatureFromUrl;
+	const fullUrl = window.location.href;
+
+	const tokenInput = document.getElementById("scanTokenInput");
+	if (tokenInput) {
+		if (signatureFromUrl) tokenInput.value = signatureFromUrl;
+		else if (sessionFromUrl) tokenInput.value = sessionFromUrl;
+		else if (sessionIdFromUrl) tokenInput.value = fullUrl;
 	}
 
 	hydrateSessionFromUrl()

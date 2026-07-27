@@ -58,8 +58,8 @@
 					<span id="cameraStatusBadge" class="status-soft">Camera off</span>
 				</div>
 				<p id="cameraStatusText" class="page-note">Open the camera to scan a QR code automatically.</p>
-				<div class="table-wrap spaced-block" style="max-width: 420px; margin-inline: auto;">
-					<video id="cameraPreview" playsinline muted autoplay style="width: 100%; border-radius: 20px; background: #0b1020; aspect-ratio: 4 / 3; object-fit: cover;"></video>
+				<div class="table-wrap spaced-block camera-preview-wrap">
+					<video id="cameraPreview" muted autoplay class="camera-preview"></video>
 				</div>
 				<div class="dashboard-links control-grid spaced-block">
 					<button class="btn-primary" onclick="openCamera()">Open camera</button>
@@ -108,6 +108,7 @@
 		</main>
 	</div>
 
+	<script src="../Js/jsqr.js"></script>
 	<script src="../Js/scanner.js"></script>
 </body>
 </html>

@@ -209,7 +209,7 @@ async function generateSession() {
 	const room = document.getElementById("roomInput")?.value.trim() || "Main Hall";
 	const allowedRadiusMeters = Number(document.getElementById("allowedRadius")?.value || 150);
 	const location = getSessionLocation();
-	const lecturerEmail = localStorage.getItem("attendiqUserEmail") || "lecturer@ums.edu.gh";
+	const lecturerEmail = localStorage.getItem("attendiqUserEmail") || "lecturer@htu.edu.gh";
 	const lecturerName = localStorage.getItem("attendiqUserName") || "Lecturer";
 	const apiBase = getApiBase();
 

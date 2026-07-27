@@ -53,7 +53,7 @@ let notifications = [];
 
 function initStudentIdentity() {
   const role = localStorage.getItem("attendiqUserRole");
-  const email = localStorage.getItem("attendiqUserEmail") || "student@ums.edu.gh";
+  const email = localStorage.getItem("attendiqUserEmail") || "student@htu.edu.gh";
 
   if (role && role !== "student") {
     showToast("This dashboard is for students only.", "error");
@@ -66,7 +66,7 @@ function initStudentIdentity() {
     name: "Prince",
     email,
     department: "Computer Science",
-    studentId: "UMS/2024/001",
+    studentId: localStorage.getItem("attendiqStudentId") || "HTU/2024/001",
     phone: "+233 24 000 0000",
   };
 
@@ -448,13 +448,7 @@ function saveProfile() {
 }
 
 function goToQuickScan() {
-  const nav = document.getElementById("studentNav");
-  if (nav) {
-    nav.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
-    const scanButton = nav.querySelector("button[data-section='scan']");
-    if (scanButton) scanButton.classList.add("active");
-  }
-  showSection("scan");
+  window.location.href = "Pages/scan-qr.html";
 }
 
 function logout() {

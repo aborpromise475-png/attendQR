@@ -38,7 +38,7 @@ function renderLecturerSummary() {
   const latestSession = sessions[0];
 
   document.getElementById("lecturerTitle").textContent = `Lecturer Dashboard - ${getLecturerName()}`;
-  document.getElementById("lecturerTopInfo").textContent = localStorage.getItem("attendiqUserEmail") || "lecturer@ums.edu.gh";
+  document.getElementById("lecturerTopInfo").textContent = localStorage.getItem("attendiqUserEmail") || "lecturer@htu.edu.gh";
   document.getElementById("activeSessionCount").textContent = String(activeSessions.length);
   document.getElementById("attendanceMarkCount").textContent = String(attendance.length);
   document.getElementById("studentCount").textContent = String(students.size);

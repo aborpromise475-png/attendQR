@@ -4,7 +4,7 @@
       "id": "demo-lecturer",
       "role": "lecturer",
       "name": "Demo Lecturer",
-      "email": "lecturer@ums.edu.gh",
+      "email": "lecturer@htu.edu.gh",
       "passwordHash": "",
       "passwordSalt": "",
       "department": "Computer Science"
@@ -13,14 +13,30 @@
       "id": "demo-student",
       "role": "student",
       "name": "Demo Student",
-      "email": "student@ums.edu.gh",
+      "email": "student@htu.edu.gh",
       "passwordHash": "",
       "passwordSalt": "",
       "department": "Computer Science",
-      "studentId": "UMS/2024/001"
+      "studentId": "HTU/2024/001"
+    },
+    {
+      "id": "f87a13da-ac33-49c1-a095-11363590c3e7",
+      "role": "student",
+      "name": "Kwame Mensah",
+      "email": "kwame@htu.edu.gh",
+      "passwordSalt": "bc62d82ec34e6f938179bbe5f49ea50a",
+      "passwordHash": "11cde71563739e4175f78e9a7028ec92e462aa4249be19087e8ab5e542408b90af4b5963151f0b13e4f28b03b164ac2bc9d1fd3888a6cac6e6a06ab3b02a1fce",
+      "department": "Computer Science",
+      "studentId": "HTU/2024/002"
     }
   ],
   "sessions": [],
-  "deviceBindings": [],
+  "deviceBindings": [
+    {
+      "studentEmail": "student@htu.edu.gh",
+      "deviceId": "DEV-TEST-12345",
+      "boundAt": "2026-07-27T18:44:20.618Z"
+    }
+  ],
   "attendanceRecords": []
 }
