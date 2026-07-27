@@ -3,10 +3,10 @@ services:
     name: attendiq
     runtime: node
     plan: free
-    rootDir: backend
+    rootDir: AttendIQ/backend
     buildCommand: npm install
     startCommand: npm start
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
       - key: ATTENDIQ_SECRET
         generateValue: true
