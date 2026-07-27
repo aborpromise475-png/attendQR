@@ -28,6 +28,14 @@ function getAttendanceStore() {
 	return Array.isArray(stored) ? stored : [];
 }
 
+function supportsCameraScan() {
+	return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+function supportsBarcodeDetector() {
+	return typeof window.BarcodeDetector !== "undefined";
+}
+
 function getApiBase() {
 	return localStorage.getItem("attendiqApiBase") || new URLSearchParams(window.location.search).get("api") || getDefaultApiBase();
 }
@@ -92,6 +100,97 @@ function getCurrentLocation() {
 
 function saveAttendanceStore(records) {
 	localStorage.setItem("attendiqAttendanceRecords", JSON.stringify(records));
+}
+
+let cameraStream = null;
+let cameraScanTimer = null;
+let barcodeDetector = null;
+
+function setCameraStatus(badgeText, message) {
+	const badge = document.getElementById("cameraStatusBadge");
+	const text = document.getElementById("cameraStatusText");
+	if (badge) badge.textContent = badgeText;
+	if (text) text.textContent = message;
+}
+
+async function ensureBarcodeDetector() {
+	if (!supportsBarcodeDetector()) return null;
+	if (!barcodeDetector) {
+		barcodeDetector = new BarcodeDetector({ formats: ["qr_code"] });
+	}
+	return barcodeDetector;
+}
+
+async function openCamera() {
+	const preview = document.getElementById("cameraPreview");
+	if (!preview) return;
+
+	if (!supportsCameraScan()) {
+		setCameraStatus("Unavailable", "This browser does not support camera access.");
+		return;
+	}
+
+	try {
+		closeCamera();
+		const stream = await navigator.mediaDevices.getUserMedia({
+			video: { facingMode: { ideal: "environment" } },
+			audio: false,
+		});
+		cameraStream = stream;
+		preview.srcObject = stream;
+		await preview.play();
+		setCameraStatus("Camera on", "Camera opened. Point it at a QR code.");
+		autoScanCameraFrame();
+	} catch (error) {
+		setCameraStatus("Blocked", error.message || "Unable to open the camera.");
+	}
+}
+
+function closeCamera() {
+	if (cameraScanTimer) {
+		clearInterval(cameraScanTimer);
+		cameraScanTimer = null;
+	}
+	if (cameraStream) {
+		cameraStream.getTracks().forEach((track) => track.stop());
+		cameraStream = null;
+	}
+	const preview = document.getElementById("cameraPreview");
+	if (preview) preview.srcObject = null;
+	setCameraStatus("Camera off", "Open the camera to scan a QR code automatically.");
+}
+
+async function scanFrameOnce() {
+	const preview = document.getElementById("cameraPreview");
+	const tokenInput = document.getElementById("scanTokenInput");
+	if (!preview || !cameraStream || !tokenInput) {
+		setCameraStatus("No camera", "Open the camera first, then scan a code.");
+		return;
+	}
+
+	const detector = await ensureBarcodeDetector();
+	if (!detector) {
+		setCameraStatus("Unsupported", "This browser cannot decode QR codes directly. Try Chrome or Edge.");
+		return;
+	}
+
+	const detections = await detector.detect(preview).catch(() => []);
+	if (detections.length > 0 && detections[0].rawValue) {
+		tokenInput.value = detections[0].rawValue;
+		setCameraStatus("QR found", "The QR token has been loaded into the form.");
+		closeCamera();
+	}
+}
+
+function autoScanCameraFrame() {
+	if (cameraScanTimer) {
+		clearInterval(cameraScanTimer);
+	}
+
+	cameraScanTimer = setInterval(async () => {
+		if (!cameraStream) return;
+		await scanFrameOnce();
+	}, 1200);
 }
 
 function toggleMobileNav() {
@@ -308,5 +407,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		.finally(() => {
 			refreshBindingStatus();
 			refreshScanSummary();
+			setCameraStatus("Camera off", "Open the camera to scan a QR code automatically.");
 		});
 });
+
+window.addEventListener("beforeunload", closeCamera);

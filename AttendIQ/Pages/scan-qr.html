@@ -29,7 +29,7 @@
 					<button class="mobile-nav-toggle" onclick="toggleMobileNav()">Menu</button>
 					<h1>Scan QR Attendance</h1>
 				</div>
-				<p class="page-note">Paste the session token or use the quick fill helper to simulate a camera scan.</p>
+				<p class="page-note">Open the camera to scan a QR code, or paste the token manually if needed.</p>
 			</header>
 
 			<section class="summary-grid">
@@ -54,6 +54,22 @@
 
 			<article class="panel">
 				<div class="panel-head">
+					<h3>Camera Scanner</h3>
+					<span id="cameraStatusBadge" class="status-soft">Camera off</span>
+				</div>
+				<p id="cameraStatusText" class="page-note">Open the camera to scan a QR code automatically.</p>
+				<div class="table-wrap spaced-block" style="max-width: 420px; margin-inline: auto;">
+					<video id="cameraPreview" playsinline muted autoplay style="width: 100%; border-radius: 20px; background: #0b1020; aspect-ratio: 4 / 3; object-fit: cover;"></video>
+				</div>
+				<div class="dashboard-links control-grid spaced-block">
+					<button class="btn-primary" onclick="openCamera()">Open camera</button>
+					<button class="btn-secondary" onclick="closeCamera()">Close camera</button>
+					<button class="btn-secondary" onclick="scanFrameOnce()">Scan current frame</button>
+				</div>
+			</article>
+
+			<article class="panel">
+				<div class="panel-head">
 					<h3>Validate Attendance</h3>
 				</div>
 				<div class="control-grid">
@@ -70,6 +86,7 @@
 					<button class="btn-primary" onclick="markAttendanceFromToken()">Mark attendance</button>
 					<button class="btn-secondary" onclick="fillActiveToken()">Use active session token</button>
 					<button class="btn-secondary" onclick="refreshScanSummary()">Refresh status</button>
+					<button class="btn-secondary" onclick="scanFrameOnce()">Read QR from camera</button>
 				</div>
 			</article>
 
