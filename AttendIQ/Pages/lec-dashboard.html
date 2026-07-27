@@ -33,12 +33,75 @@
 				<p id="lecturerTopInfo">lecturer@htu.edu.gh</p>
 			</header>
 
+			<article class="panel course-selector-panel">
+				<div class="panel-head">
+					<h3>Select Course & Class Management</h3>
+					<span id="activeCourseBadge" class="status-soft">CSC 305</span>
+				</div>
+				<div class="filter-row">
+					<div class="form-group" style="flex: 2;">
+						<label for="activeCourseSelect">Select Teaching Course</label>
+						<select id="activeCourseSelect" onchange="onLecturerCourseChange()"></select>
+					</div>
+					<div class="form-group">
+						<label for="newCourseCodeInput">Add New Code</label>
+						<input id="newCourseCodeInput" type="text" placeholder="e.g. CSC 402" />
+					</div>
+					<div class="form-group" style="flex: 1.5;">
+						<label for="newCourseNameInput">Course Name</label>
+						<input id="newCourseNameInput" type="text" placeholder="e.g. Cloud Computing" />
+					</div>
+				</div>
+				<div class="dashboard-links control-grid">
+					<button class="btn-secondary" onclick="addNewCourseFromDashboard()">+ Add Course</button>
+					<button class="btn-primary" onclick="goToGenerateQrForActiveCourse()">Generate QR for Selected Course</button>
+				</div>
+			</article>
+
 			<section class="summary-grid">
 				<article class="summary-card"><p>Active sessions</p><strong id="activeSessionCount">0</strong></article>
 				<article class="summary-card"><p>Attendance marks</p><strong id="attendanceMarkCount">0</strong></article>
 				<article class="summary-card"><p>Students checked in</p><strong id="studentCount">0</strong></article>
 				<article class="summary-card"><p>Latest session</p><strong id="latestSessionLabel">None</strong></article>
 			</section>
+
+			<article class="panel">
+				<div class="panel-head">
+					<h3>Live Student Attendance Watcher</h3>
+					<span id="liveWatcherBadge" class="status-soft live-pulse-badge">🔴 Live Monitor</span>
+				</div>
+				<p class="page-note">Watch students check in for the selected course in real-time as they scan the QR code.</p>
+				
+				<div class="filter-row spaced-block">
+					<div class="form-group" style="flex: 2;">
+						<input id="watcherStudentSearch" type="text" placeholder="Search student name or ID..." oninput="renderLiveAttendanceWatcher()" />
+					</div>
+					<div class="form-group">
+						<button class="btn-secondary" onclick="syncLecturerDataFromBackend()">🔄 Refresh</button>
+					</div>
+					<div class="form-group">
+						<button class="btn-primary" onclick="exportWatcherCsv()">📥 Export CSV</button>
+					</div>
+				</div>
+
+				<div class="table-wrap spaced-block">
+					<table>
+						<thead>
+							<tr>
+								<th>Student Name</th>
+								<th>Student ID</th>
+								<th>Email</th>
+								<th>Marked At</th>
+								<th>Status</th>
+								<th>Device ID</th>
+								<th>Room</th>
+							</tr>
+						</thead>
+						<tbody id="watcherTableBody"></tbody>
+					</table>
+				</div>
+				<p id="watcherEmptyState" class="page-note text-center spaced-block" style="display: none;">No student attendance recorded yet for this course.</p>
+			</article>
 
 			<article class="panel">
 				<div class="panel-head">

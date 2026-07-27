@@ -472,6 +472,35 @@ function showToast(message, type = "info") {
   }, 2400);
 }
 
+function getDefaultApiBase() {
+  return window.location.protocol === "file:" || window.location.origin === "null"
+    ? "http://localhost:3000"
+    : window.location.origin;
+}
+
+function getApiBase() {
+  return localStorage.getItem("attendiqApiBase") || getDefaultApiBase();
+}
+
+async function syncStudentDataFromBackend() {
+  try {
+    const apiBase = getApiBase();
+    const email = localStorage.getItem("attendiqUserEmail") || "student@htu.edu.gh";
+    const response = await fetch(`${apiBase}/api/reports/attendance?studentEmail=${encodeURIComponent(email)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    if (Array.isArray(data.records) && data.records.length > 0) {
+      const existing = JSON.parse(localStorage.getItem("attendiqAttendanceRecords") || "[]");
+      const mergedMap = new Map();
+      existing.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+      data.records.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+      localStorage.setItem("attendiqAttendanceRecords", JSON.stringify(Array.from(mergedMap.values())));
+    }
+  } catch (err) {
+    console.warn("Student backend sync notice:", err.message);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   notifications = JSON.parse(localStorage.getItem("attendiqNotifications") || "null") || notificationSeed;
   renderNotifications();
@@ -486,6 +515,14 @@ document.addEventListener("DOMContentLoaded", () => {
   attachNavEvents();
   showSection("home");
   setScanState("loading");
+
+  syncStudentDataFromBackend().finally(() => {
+    loadCourseFilter();
+    renderAttendanceTable();
+    renderRiskAlerts();
+    renderTrendBars();
+  });
+
   window.setTimeout(() => {
     showToast("Dashboard loaded.", "info");
   }, 300);

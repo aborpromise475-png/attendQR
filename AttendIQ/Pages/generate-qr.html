@@ -99,6 +99,31 @@
 
 			<article class="panel">
 				<div class="panel-head">
+					<h3>Live Scanned Students Watcher</h3>
+					<span id="qrLiveWatcherBadge" class="status-soft live-pulse-badge">🔴 Real-Time Watcher</span>
+				</div>
+				<p class="page-note">Students checking in for this session will appear here instantly as they scan.</p>
+				
+				<div class="table-wrap spaced-block">
+					<table>
+						<thead>
+							<tr>
+								<th>Student Name</th>
+								<th>Student ID</th>
+								<th>Email</th>
+								<th>Marked At</th>
+								<th>Status</th>
+								<th>Device ID</th>
+							</tr>
+						</thead>
+						<tbody id="qrWatcherTableBody"></tbody>
+					</table>
+				</div>
+				<p id="qrWatcherEmptyState" class="page-note text-center spaced-block">Waiting for students to scan the QR code...</p>
+			</article>
+
+			<article class="panel">
+				<div class="panel-head">
 					<h3>Session History</h3>
 				</div>
 				<div class="table-wrap">

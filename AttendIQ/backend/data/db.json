@@ -28,15 +28,66 @@
       "passwordHash": "11cde71563739e4175f78e9a7028ec92e462aa4249be19087e8ab5e542408b90af4b5963151f0b13e4f28b03b164ac2bc9d1fd3888a6cac6e6a06ab3b02a1fce",
       "department": "Computer Science",
       "studentId": "HTU/2024/002"
+    },
+    {
+      "id": "e6ba9f24-5542-4b4f-a629-3387e7bd4e08",
+      "role": "student",
+      "name": "Kofi HTU Student",
+      "email": "student1@htu.edu.gh",
+      "passwordSalt": "7303b0d267e0a033dcd19e05cc6a8723",
+      "passwordHash": "936f4b9edd3b2a60833ede1110d4bcf4e35d9100ed02908395ec65c116427140442ffa4b7e5fa5238eafe62ff896606e266b3489d2e5deba5a1ae4b89a205b0a",
+      "department": "Computer Science",
+      "studentId": "HTU/2024/777"
     }
   ],
-  "sessions": [],
+  "sessions": [
+    {
+      "id": "d7cda030-6b0f-4696-8489-f9a2921db76a",
+      "lecturerEmail": "lecturer@htu.edu.gh",
+      "lecturerName": "Dr. Arthur",
+      "courseCode": "NET 301",
+      "courseName": "Computer Networking",
+      "room": "Room 4",
+      "latitude": 6.06,
+      "longitude": 0.47,
+      "allowedRadiusMeters": 200,
+      "createdAt": "2026-07-27T19:10:33.596Z",
+      "expiresAt": "2026-07-27T19:25:33.596Z",
+      "status": "Active",
+      "signature": "0b47f3a42a3ecf259c9be3d4bc251893007057242b89bdb9eed66445f85d97fc",
+      "scanUrl": "/Pages/scan-qr.html?sessionId=d7cda030-6b0f-4696-8489-f9a2921db76a&sig=0b47f3a42a3ecf259c9be3d4bc251893007057242b89bdb9eed66445f85d97fc&api=http%3A%2F%2Flocalhost%3A3097"
+    }
+  ],
   "deviceBindings": [
     {
       "studentEmail": "student@htu.edu.gh",
       "deviceId": "DEV-TEST-12345",
       "boundAt": "2026-07-27T18:44:20.618Z"
+    },
+    {
+      "id": "5073de80-524c-4559-ae68-1a1be2995d7b",
+      "studentEmail": "student1@htu.edu.gh",
+      "deviceId": "DEV-HTU-PHONE-001",
+      "boundAt": "2026-07-27T19:10:33.589Z"
     }
   ],
-  "attendanceRecords": []
+  "attendanceRecords": [
+    {
+      "id": "7ed7edc0-8994-4182-820f-d242199a5979",
+      "sessionId": "d7cda030-6b0f-4696-8489-f9a2921db76a",
+      "courseCode": "NET 301",
+      "courseName": "Computer Networking",
+      "lecturerEmail": "lecturer@htu.edu.gh",
+      "studentEmail": "student1@htu.edu.gh",
+      "studentName": "Kofi HTU Student",
+      "studentId": "HTU/2024/777",
+      "deviceId": "DEV-HTU-PHONE-001",
+      "room": "Room 4",
+      "markedAt": "2026-07-27T19:10:33.606Z",
+      "status": "Present",
+      "latitude": 6.06,
+      "longitude": 0.47,
+      "note": "Present in class"
+    }
+  ]
 }

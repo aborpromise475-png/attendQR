@@ -1,10 +1,13 @@
-const qrDemoCourses = [
+const defaultQrCourses = [
 	{ code: "CSC 305", name: "Database Management Systems" },
 	{ code: "NET 301", name: "Computer Networking" },
 	{ code: "CSC 303", name: "Web Development" },
+	{ code: "INF 302", name: "Software Engineering" },
+	{ code: "CSC 401", name: "Artificial Intelligence" },
 ];
 
 let countdownTimer = null;
+let qrWatcherPollingTimer = null;
 let activeServerSession = null;
 
 function getDefaultApiBase() {
@@ -105,16 +108,41 @@ function setActiveSession(session) {
 	localStorage.setItem("attendiqActiveQrSession", JSON.stringify(session));
 }
 
-function renderCourseOptions() {
+function getLecturerCourses() {
+	const stored = JSON.parse(localStorage.getItem("attendiqLecturerCourses") || "[]");
+	if (!stored.length) return defaultQrCourses;
+	const mergedMap = new Map();
+	defaultQrCourses.forEach((c) => mergedMap.set(c.code, c));
+	stored.forEach((c) => mergedMap.set(c.code, c));
+	return Array.from(mergedMap.values());
+}
+
+async function renderCourseOptions() {
 	const select = document.getElementById("courseSelect");
 	if (!select) return;
 	select.innerHTML = "";
 
-	qrDemoCourses.forEach((course, index) => {
+	let courses = getLecturerCourses();
+	try {
+		const apiBase = getApiBase();
+		const lecturerEmail = localStorage.getItem("attendiqUserEmail") || "lecturer@htu.edu.gh";
+		const res = await fetch(`${apiBase}/api/courses?lecturerEmail=${encodeURIComponent(lecturerEmail)}`);
+		if (res.ok) {
+			const data = await res.json();
+			if (Array.isArray(data.courses) && data.courses.length > 0) {
+				courses = data.courses;
+			}
+		}
+	} catch (e) {}
+
+	const params = new URLSearchParams(window.location.search);
+	const targetCourse = params.get("course") || localStorage.getItem("attendiqSelectedCourse") || courses[0]?.code;
+
+	courses.forEach((course) => {
 		const option = document.createElement("option");
 		option.value = course.code;
 		option.textContent = `${course.code} - ${course.name}`;
-		if (index === 0) option.selected = true;
+		if (course.code === targetCourse) option.selected = true;
 		select.appendChild(option);
 	});
 }
@@ -132,10 +160,90 @@ function renderHistory() {
 			<td>${session.date || "-"}</td>
 			<td>${session.time || "-"}</td>
 			<td>${session.durationMinutes || 30} min</td>
-			<td>${session.token.slice(0, 12)}...</td>
+			<td>${session.token ? session.token.slice(0, 12) + "..." : "-"}</td>
 		`;
 		tbody.appendChild(row);
 	});
+}
+
+function renderQrLiveWatcher() {
+	const tbody = document.getElementById("qrWatcherTableBody");
+	const emptyState = document.getElementById("qrWatcherEmptyState");
+	if (!tbody) return;
+
+	const active = getActiveSession();
+	const storedRecords = JSON.parse(localStorage.getItem("attendiqAttendanceRecords") || "[]");
+
+	if (!active) {
+		tbody.innerHTML = "";
+		if (emptyState) {
+			emptyState.textContent = "No active session created yet.";
+			emptyState.style.display = "block";
+		}
+		return;
+	}
+
+	const sessionRecords = storedRecords.filter(
+		(r) => r.sessionId === active.id || r.courseCode === active.courseCode
+	);
+
+	tbody.innerHTML = "";
+
+	if (sessionRecords.length === 0) {
+		if (emptyState) {
+			emptyState.textContent = `Waiting for students to scan QR code for ${active.courseCode}...`;
+			emptyState.style.display = "block";
+		}
+		return;
+	}
+
+	if (emptyState) emptyState.style.display = "none";
+
+	sessionRecords.slice().reverse().forEach((record) => {
+		const row = document.createElement("tr");
+		row.innerHTML = `
+			<td><strong>${record.studentName || "Student"}</strong></td>
+			<td><code>${record.studentId || "N/A"}</code></td>
+			<td>${record.studentEmail || "-"}</td>
+			<td>${record.markedAt ? new Date(record.markedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-"}</td>
+			<td><span class="status-pill status-present">Checked In</span></td>
+			<td><span class="status-pill status-soft">${record.deviceId ? record.deviceId.slice(0, 8) + "..." : "Verified"}</span></td>
+		`;
+		tbody.appendChild(row);
+	});
+}
+
+async function syncActiveQrWatcherFromBackend() {
+	const active = getActiveSession();
+	if (!active) {
+		renderQrLiveWatcher();
+		return;
+	}
+
+	try {
+		const apiBase = getApiBase();
+		const res = await fetch(`${apiBase}/api/reports/attendance?sessionId=${encodeURIComponent(active.id)}`);
+		if (res.ok) {
+			const data = await res.json();
+			if (Array.isArray(data.records)) {
+				const existing = JSON.parse(localStorage.getItem("attendiqAttendanceRecords") || "[]");
+				const mergedMap = new Map();
+				existing.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+				data.records.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+				localStorage.setItem("attendiqAttendanceRecords", JSON.stringify(Array.from(mergedMap.values())));
+			}
+		}
+	} catch (e) {
+	} finally {
+		renderQrLiveWatcher();
+	}
+}
+
+function startQrWatcherPolling() {
+	if (qrWatcherPollingTimer) clearInterval(qrWatcherPollingTimer);
+	qrWatcherPollingTimer = setInterval(() => {
+		syncActiveQrWatcherFromBackend();
+	}, 3000);
 }
 
 function updateSummary(session) {
@@ -158,6 +266,7 @@ function updateSummary(session) {
 		updateLocationSummary();
 		if (locationMeta) locationMeta.textContent = "No location bound yet.";
 		if (status) status.textContent = "No session yet";
+		renderQrLiveWatcher();
 		return;
 	}
 
@@ -167,7 +276,7 @@ function updateSummary(session) {
 
 	if (sessionStatusLabel) sessionStatusLabel.textContent = remainingMs > 0 ? "Active" : "Expired";
 	if (countdown) countdown.textContent = `${String(remainingMinutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-	if (tokenLengthLabel) tokenLengthLabel.textContent = `${session.token.length} chars`;
+	if (tokenLengthLabel) tokenLengthLabel.textContent = `${session.token ? session.token.length : 0} chars`;
 	if (roomLabel) roomLabel.textContent = session.room || "N/A";
 	if (qrFrame && typeof QRCode !== "undefined") {
 		const qrPayload = session.scanUrl || `${window.location.origin}${window.location.pathname.replace("generate-qr.html", "scan-qr.html")}?sessionId=${encodeURIComponent(session.id)}&sig=${encodeURIComponent(session.signature || session.token)}`;
@@ -194,6 +303,7 @@ function updateSummary(session) {
 	}
 	updateLocationSummary();
 	if (status) status.textContent = remainingMs > 0 ? "Live session" : "Expired";
+	renderQrLiveWatcher();
 }
 
 function refreshCountdown() {
@@ -201,8 +311,10 @@ function refreshCountdown() {
 }
 
 async function generateSession() {
-	const courseCode = document.getElementById("courseSelect")?.value || qrDemoCourses[0].code;
-	const courseName = qrDemoCourses.find((course) => course.code === courseCode)?.name || courseCode;
+	const courseSelect = document.getElementById("courseSelect");
+	const courseCode = courseSelect?.value || "CSC 305";
+	const courses = getLecturerCourses();
+	const courseName = courses.find((course) => course.code === courseCode)?.name || courseCode;
 	const date = document.getElementById("sessionDate")?.value || new Date().toISOString().slice(0, 10);
 	const time = document.getElementById("sessionStart")?.value || new Date().toTimeString().slice(0, 5);
 	const durationMinutes = Number(document.getElementById("sessionDuration")?.value || 15);
@@ -265,6 +377,8 @@ async function generateSession() {
 
 	if (countdownTimer) clearInterval(countdownTimer);
 	countdownTimer = window.setInterval(refreshCountdown, 1000);
+
+	startQrWatcherPolling();
 }
 
 function refreshActiveSession() {
@@ -313,8 +427,8 @@ function toggleMobileNav() {
 	if (sidebar) sidebar.classList.toggle("mobile-open");
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-	renderCourseOptions();
+document.addEventListener("DOMContentLoaded", async () => {
+	await renderCourseOptions();
 	renderHistory();
 
 	const today = new Date().toISOString().slice(0, 10);
@@ -334,5 +448,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	if (active) {
 		if (countdownTimer) clearInterval(countdownTimer);
 		countdownTimer = window.setInterval(refreshCountdown, 1000);
+		startQrWatcherPolling();
 	}
 });

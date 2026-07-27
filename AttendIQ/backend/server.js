@@ -56,7 +56,7 @@ function ensureDataFile() {
   }
 
   if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], sessions: [], deviceBindings: [], attendanceRecords: [] }, null, 2));
+    fs.writeFileSync(DB_PATH, JSON.stringify({ users: [], sessions: [], deviceBindings: [], attendanceRecords: [], courses: [] }, null, 2));
   }
 }
 
@@ -69,6 +69,7 @@ function loadDb() {
     sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
     deviceBindings: Array.isArray(parsed.deviceBindings) ? parsed.deviceBindings : [],
     attendanceRecords: Array.isArray(parsed.attendanceRecords) ? parsed.attendanceRecords : [],
+    courses: Array.isArray(parsed.courses) ? parsed.courses : [],
   };
 }
 
@@ -267,10 +268,12 @@ function filterAttendance(db, query) {
     const recordDate = record.markedAt ? record.markedAt.slice(0, 10) : '';
     const byStudent = !query.studentEmail || normalizeEmail(record.studentEmail) === normalizeEmail(query.studentEmail);
     const byCourse = !query.courseCode || record.courseCode === query.courseCode;
+    const byLecturer = !query.lecturerEmail || normalizeEmail(record.lecturerEmail) === normalizeEmail(query.lecturerEmail);
+    const bySession = !query.sessionId || record.sessionId === query.sessionId;
     const byStatus = !query.status || record.status === query.status;
     const byStart = !query.from || recordDate >= query.from;
     const byEnd = !query.to || recordDate <= query.to;
-    return byStudent && byCourse && byStatus && byStart && byEnd;
+    return byStudent && byCourse && byLecturer && bySession && byStatus && byStart && byEnd;
   });
 }
 
@@ -567,11 +570,50 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && pathname === '/api/courses') {
+    const db = await loadDbAsync();
+    const lecturerEmail = searchParams.get('lecturerEmail') || '';
+    const defaultCourses = [
+      { code: "CSC 305", name: "Database Management Systems" },
+      { code: "NET 301", name: "Computer Networking" },
+      { code: "CSC 303", name: "Web Development" },
+      { code: "INF 302", name: "Software Engineering" },
+      { code: "CSC 401", name: "Artificial Intelligence" },
+    ];
+    const userCourses = (db.courses || []).filter((c) => !lecturerEmail || !c.lecturerEmail || normalizeEmail(c.lecturerEmail) === normalizeEmail(lecturerEmail));
+    const mergedMap = new Map();
+    defaultCourses.forEach((c) => mergedMap.set(c.code, c));
+    userCourses.forEach((c) => mergedMap.set(c.code, { code: c.code, name: c.name }));
+    jsonResponse(res, 200, { courses: Array.from(mergedMap.values()) });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/courses') {
+    const body = await readBody(req);
+    const code = String(body.code || body.courseCode || '').trim().toUpperCase();
+    const name = String(body.name || body.courseName || '').trim();
+    if (!code || !name) {
+      jsonResponse(res, 400, { error: 'Course code and name are required' });
+      return;
+    }
+    const db = await loadDbAsync();
+    db.courses = db.courses || [];
+    const existingIndex = db.courses.findIndex((c) => c.code === code);
+    const courseRecord = { id: createId(), code, name, lecturerEmail: normalizeEmail(body.lecturerEmail || '') };
+    if (existingIndex >= 0) db.courses[existingIndex] = courseRecord;
+    else db.courses.push(courseRecord);
+    saveDb(db);
+    jsonResponse(res, 201, { course: courseRecord });
+    return;
+  }
+
   if (req.method === 'GET' && pathname === '/api/reports/attendance') {
     const db = await loadDbAsync();
     const records = filterAttendance(db, {
       studentEmail: searchParams.get('studentEmail') || '',
       courseCode: searchParams.get('courseCode') || '',
+      lecturerEmail: searchParams.get('lecturerEmail') || '',
+      sessionId: searchParams.get('sessionId') || '',
       status: searchParams.get('status') || '',
       from: searchParams.get('from') || '',
       to: searchParams.get('to') || '',

@@ -74,14 +74,16 @@ body.dashboard-page {
 }
 
 .filter-row {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	display: flex;
+	flex-wrap: wrap;
 	gap: 10px;
 	margin-bottom: 12px;
 }
 
 .filter-row .form-group {
 	margin-bottom: 0;
+	flex: 1;
+	min-width: 140px;
 }
 
 .page-note {
@@ -99,6 +101,45 @@ body.dashboard-page {
 	font-weight: 700;
 	background: #eff6ff;
 	color: #1d4ed8;
+}
+
+.live-pulse-badge {
+	background: #fef2f2;
+	color: #dc2626;
+	border: 1px solid #fca5a5;
+	animation: pulseLive 2s infinite;
+}
+
+@keyframes pulseLive {
+	0% {
+		box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+	}
+	70% {
+		box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+	}
+}
+
+.watcher-row-highlight {
+	animation: fadeInRow 0.4s ease-out;
+}
+
+@keyframes fadeInRow {
+	from {
+		background-color: #ecfdf5;
+		transform: translateY(-4px);
+	}
+	to {
+		background-color: transparent;
+		transform: translateY(0);
+	}
+}
+
+.course-selector-panel {
+	border-left: 5px solid #2563eb;
+	background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
 }
 
 .spaced-block {

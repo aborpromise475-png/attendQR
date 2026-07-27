@@ -1,6 +1,20 @@
+function getDefaultApiBase() {
+	return window.location.protocol === "file:" || window.location.origin === "null"
+		? "http://localhost:3000"
+		: window.location.origin;
+}
+
+function getApiBase() {
+	return localStorage.getItem("attendiqApiBase") || getDefaultApiBase();
+}
+
 function getAttendanceStore() {
 	const stored = JSON.parse(localStorage.getItem("attendiqAttendanceRecords") || "[]");
 	return Array.isArray(stored) ? stored : [];
+}
+
+function saveAttendanceStore(records) {
+	localStorage.setItem("attendiqAttendanceRecords", JSON.stringify(records));
 }
 
 function getSessionStore() {
@@ -18,6 +32,26 @@ function logout() {
 	localStorage.removeItem("attendiqUserEmail");
 	localStorage.removeItem("attendiqUserName");
 	window.location.href = "../login.html";
+}
+
+async function syncReportsFromBackend() {
+	try {
+		const apiBase = getApiBase();
+		const lecturerEmail = localStorage.getItem("attendiqUserEmail") || "";
+		const response = await fetch(`${apiBase}/api/reports/attendance${lecturerEmail ? `?lecturerEmail=${encodeURIComponent(lecturerEmail)}` : ""}`);
+		if (!response.ok) return;
+		const data = await response.json();
+		if (Array.isArray(data.records)) {
+			const existing = getAttendanceStore();
+			const mergedMap = new Map();
+			existing.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+			data.records.forEach((r) => mergedMap.set(r.id || `${r.sessionId}-${r.studentEmail}`, r));
+			const merged = Array.from(mergedMap.values());
+			saveAttendanceStore(merged);
+		}
+	} catch (err) {
+		console.warn("Backend report sync notice:", err.message);
+	}
 }
 
 function buildCourseOptions(records) {
@@ -40,10 +74,15 @@ function renderReportSummary(records) {
 	const absent = records.filter((record) => record.status === "Absent").length;
 	const uniqueStudents = new Set(records.map((record) => record.studentEmail || record.studentId || record.studentName).filter(Boolean)).size;
 
-	document.getElementById("reportTotalCount").textContent = String(records.length);
-	document.getElementById("reportPresentCount").textContent = String(present);
-	document.getElementById("reportAbsentCount").textContent = String(absent);
-	document.getElementById("reportStudentCount").textContent = String(uniqueStudents);
+	const totalEl = document.getElementById("reportTotalCount");
+	const presentEl = document.getElementById("reportPresentCount");
+	const absentEl = document.getElementById("reportAbsentCount");
+	const studentEl = document.getElementById("reportStudentCount");
+
+	if (totalEl) totalEl.textContent = String(records.length);
+	if (presentEl) presentEl.textContent = String(present);
+	if (absentEl) absentEl.textContent = String(absent);
+	if (studentEl) studentEl.textContent = String(uniqueStudents);
 }
 
 function getFilteredRecords() {
@@ -76,9 +115,9 @@ function renderReportTable() {
 		const row = document.createElement("tr");
 		row.innerHTML = `
 			<td>${record.markedAt ? new Date(record.markedAt).toLocaleDateString() : "-"}</td>
-			<td>${record.courseCode} - ${record.courseName}</td>
-			<td>${record.studentName || "Unknown"}</td>
-			<td>${record.sessionId}</td>
+			<td>${record.courseCode} - ${record.courseName || record.course || "Course"}</td>
+			<td>${record.studentName || record.studentEmail || "Student"}</td>
+			<td>${record.sessionId || "-"}</td>
 			<td><span class="status-pill status-present">${record.status || "Present"}</span></td>
 			<td>${record.markedAt ? new Date(record.markedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
 		`;
@@ -94,8 +133,8 @@ function exportReportCsv() {
 		["Date", "Course", "Student", "Session", "Status", "Marked At"],
 		...records.map((record) => [
 			record.markedAt ? new Date(record.markedAt).toLocaleDateString() : "",
-			`${record.courseCode} - ${record.courseName}`,
-			record.studentName || "",
+			`${record.courseCode} - ${record.courseName || record.course || ""}`,
+			record.studentName || record.studentEmail || "",
 			record.sessionId || "",
 			record.status || "Present",
 			record.markedAt ? new Date(record.markedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
@@ -133,6 +172,12 @@ document.addEventListener("DOMContentLoaded", () => {
 	const records = getAttendanceStore();
 	buildCourseOptions(records);
 	renderReportTable();
+
+	syncReportsFromBackend().finally(() => {
+		const updatedRecords = getAttendanceStore();
+		buildCourseOptions(updatedRecords);
+		renderReportTable();
+	});
 
 	const activeSession = getSessionStore()[0];
 	if (activeSession) {
