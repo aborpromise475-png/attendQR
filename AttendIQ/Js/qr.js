@@ -319,7 +319,7 @@ async function generateSession() {
 	const time = document.getElementById("sessionStart")?.value || new Date().toTimeString().slice(0, 5);
 	const durationMinutes = Number(document.getElementById("sessionDuration")?.value || 15);
 	const room = document.getElementById("roomInput")?.value.trim() || "Main Hall";
-	const allowedRadiusMeters = Number(document.getElementById("allowedRadius")?.value || 150);
+	const allowedRadiusMeters = Number(document.getElementById("allowedRadius")?.value || 21.34);
 	const location = getSessionLocation();
 	const lecturerEmail = localStorage.getItem("attendiqUserEmail") || "lecturer@htu.edu.gh";
 	const lecturerName = localStorage.getItem("attendiqUserName") || "Lecturer";

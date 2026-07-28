@@ -56,13 +56,30 @@
       "status": "Active",
       "signature": "0b47f3a42a3ecf259c9be3d4bc251893007057242b89bdb9eed66445f85d97fc",
       "scanUrl": "/Pages/scan-qr.html?sessionId=d7cda030-6b0f-4696-8489-f9a2921db76a&sig=0b47f3a42a3ecf259c9be3d4bc251893007057242b89bdb9eed66445f85d97fc&api=http%3A%2F%2Flocalhost%3A3097"
+    },
+    {
+      "id": "a08fd764-622a-47fe-a9aa-c31413938745",
+      "lecturerEmail": "lecturer@htu.edu.gh",
+      "lecturerName": "",
+      "courseCode": "TEST 101",
+      "courseName": "Software Testing",
+      "room": "Main Hall",
+      "latitude": null,
+      "longitude": null,
+      "allowedRadiusMeters": 21.34,
+      "createdAt": "2026-07-27T20:02:00.784Z",
+      "expiresAt": "2026-07-27T20:17:00.784Z",
+      "status": "Active",
+      "signature": "d2055de371add460c6a200192e8db18c78d1fa3ec306028dd725e80f7feb630a",
+      "scanUrl": "/Pages/scan-qr.html?sessionId=a08fd764-622a-47fe-a9aa-c31413938745&sig=d2055de371add460c6a200192e8db18c78d1fa3ec306028dd725e80f7feb630a&api=http%3A%2F%2Flocalhost%3A3000"
     }
   ],
   "deviceBindings": [
     {
+      "id": "d9f9c7d1-71a2-4eb3-9726-9a7d7a6948bc",
       "studentEmail": "student@htu.edu.gh",
-      "deviceId": "DEV-TEST-12345",
-      "boundAt": "2026-07-27T18:44:20.618Z"
+      "deviceId": "dev-12345",
+      "boundAt": "2026-07-27T20:02:00.798Z"
     },
     {
       "id": "5073de80-524c-4559-ae68-1a1be2995d7b",
@@ -88,6 +105,31 @@
       "latitude": 6.06,
       "longitude": 0.47,
       "note": "Present in class"
+    },
+    {
+      "id": "59409b4d-9b96-4690-925d-aafed88e2b9e",
+      "sessionId": "a08fd764-622a-47fe-a9aa-c31413938745",
+      "courseCode": "TEST 101",
+      "courseName": "Software Testing",
+      "lecturerEmail": "lecturer@htu.edu.gh",
+      "studentEmail": "student@htu.edu.gh",
+      "studentName": "Kwame Mensah",
+      "studentId": "HTU/2024/001",
+      "deviceId": "dev-12345",
+      "room": "Main Hall",
+      "markedAt": "2026-07-27T20:02:00.811Z",
+      "status": "Present",
+      "latitude": null,
+      "longitude": null,
+      "note": ""
+    }
+  ],
+  "courses": [
+    {
+      "id": "32464845-36d9-442b-814e-2019276367c4",
+      "code": "TEST 101",
+      "name": "Software Testing",
+      "lecturerEmail": "lecturer@htu.edu.gh"
     }
   ]
 }

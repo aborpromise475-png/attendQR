@@ -427,7 +427,7 @@ async function handleRequest(req, res) {
       room: body.room || 'Main Hall',
       latitude: Number.isFinite(Number(body.latitude)) ? Number(body.latitude) : null,
       longitude: Number.isFinite(Number(body.longitude)) ? Number(body.longitude) : null,
-      allowedRadiusMeters: Number(body.allowedRadiusMeters || 150),
+      allowedRadiusMeters: Number(body.allowedRadiusMeters || 21.34),
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
       status: 'Active',
@@ -546,6 +546,12 @@ async function handleRequest(req, res) {
       return;
     }
 
+    const existingUser = db.users.find((u) => normalizeEmail(u.email) === studentEmail);
+    const resolvedName = (body.studentName && body.studentName !== 'Student')
+      ? body.studentName
+      : (existingUser && existingUser.name ? existingUser.name : (studentEmail.includes('@') ? studentEmail.split('@')[0].toUpperCase() : 'HTU Student'));
+    const resolvedStudentId = body.studentId || (existingUser && existingUser.studentId ? existingUser.studentId : 'HTU/2024/001');
+
     const attendance = {
       id: createId(),
       sessionId: session.id,
@@ -553,8 +559,8 @@ async function handleRequest(req, res) {
       courseName: session.courseName,
       lecturerEmail: session.lecturerEmail,
       studentEmail,
-      studentName: body.studentName || '',
-      studentId: body.studentId || '',
+      studentName: resolvedName,
+      studentId: resolvedStudentId,
       deviceId,
       room: session.room,
       markedAt: new Date().toISOString(),

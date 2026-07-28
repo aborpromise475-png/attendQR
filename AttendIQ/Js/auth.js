@@ -151,7 +151,8 @@ async function handleLogin() {
   if (email === demoUsers[selectedRole].email && password === demoUsers[selectedRole].password) {
     localStorage.setItem("attendiqUserRole", selectedRole);
     localStorage.setItem("attendiqUserEmail", email);
-    localStorage.setItem("attendiqUserName", selectedRole === "student" ? "Student" : "Lecturer");
+    localStorage.setItem("attendiqUserName", selectedRole === "student" ? "Kwame Mensah" : "Dr. Edwin Kwami");
+    if (selectedRole === "student") localStorage.setItem("attendiqStudentId", "HTU/2024/001");
     hideError();
     if (selectedRole === "student") {
       window.location.href = "student-dashboard.html";

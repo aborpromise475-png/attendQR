@@ -470,7 +470,7 @@ async function markAttendanceFromToken() {
 			return;
 		}
 		const distance = haversineDistanceMeters(active.latitude, active.longitude, studentLoc.latitude, studentLoc.longitude);
-		const radius = Number(active.allowedRadiusMeters || 150);
+		const radius = Number(active.allowedRadiusMeters || 21.34);
 		if (distance > radius) {
 			document.getElementById("scanResultBadge").textContent = "Too far";
 			document.getElementById("scanResultText").textContent = `You are about ${Math.round(distance)}m away from classroom. Radius limit is ${radius}m.`;
